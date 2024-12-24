@@ -82,6 +82,11 @@ def generate_matrix_svg(private_key, public_key):
 
     return svg
 
+
+@app.route('/')
+def home():
+    return redirect("https://github.com/ThiagoSousa81/Read-me-Apps/#readme", code=302)  
+
 @app.route('/generate-keys', methods=['GET'])
 def generate_keys():
     # Coletar as chaves
