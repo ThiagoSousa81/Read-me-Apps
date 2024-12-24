@@ -1,7 +1,13 @@
-from flask import Flask, Response
+from flask import Flask, Response, redirect
 import requests
 
 app = Flask(__name__)
+
+# Rota principal '/'
+@app.route('/')
+def home():
+    # Redirecionar para o link do GitHub
+    return redirect("https://github.com/ThiagoSousa81/Read-me-Apps/#readme", code=302)  
 
 # Função para coletar as chaves da API
 def get_keys():
@@ -82,11 +88,7 @@ def generate_matrix_svg(private_key, public_key):
 
     return svg
 
-
-@app.route('/')
-def home():
-    return redirect("https://github.com/ThiagoSousa81/Read-me-Apps/#readme", code=302)  
-
+# Rota para gerar as chaves
 @app.route('/generate-keys', methods=['GET'])
 def generate_keys():
     # Coletar as chaves
