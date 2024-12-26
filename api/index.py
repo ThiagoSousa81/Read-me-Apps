@@ -21,7 +21,16 @@ def split_key_into_lines(key, max_length=60):
     lines = [key[i:i + max_length] for i in range(0, len(key), max_length)]
     return lines
 
-# Função para gerar o SVG
+def split_key_into_lines(key, line_length=60):
+    """Divide a chave em várias linhas com comprimento máximo especificado."""
+    lines = []
+    while len(key) > line_length:
+        lines.append(key[:line_length])
+        key = key[line_length:]
+    if key:
+        lines.append(key)
+    return lines
+
 def generate_matrix_svg(private_key, public_key):
     # Escapar caracteres especiais para SVG
     private_key = private_key.replace('&', '&amp;').replace('"', '&quot;').replace("'", '&apos;').replace('<', '&lt;').replace('>', '&gt;')
@@ -33,7 +42,7 @@ def generate_matrix_svg(private_key, public_key):
 
     # Início do SVG
     svg = '''
-<svg width="800" height="300" xmlns="http://www.w3.org/2000/svg">
+<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <style type="text/css">
       .key-container {
@@ -70,7 +79,7 @@ def generate_matrix_svg(private_key, public_key):
   <text x="420" y="30" class="key-container key-title">Chave Privada</text>'''
 
     # Adicionar o conteúdo da chave pública
-    y_position = 50  # Iniciar a posição Y
+    y_position = 50  # Iniciar a posição Y para a chave pública
     svg += '<text x="20" y="' + str(y_position) + '" class="key-container key-content">'
     for line in public_key_lines:
         svg += f'<tspan x="20" dy="1.2em">{line}</tspan>'
@@ -87,6 +96,7 @@ def generate_matrix_svg(private_key, public_key):
     svg += '</svg>'
 
     return svg
+
 
 # Rota para gerar as chaves
 @app.route('/generate-keys', methods=['GET'])
