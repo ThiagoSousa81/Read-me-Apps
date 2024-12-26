@@ -85,6 +85,8 @@ def generate_matrix_svg(private_key, public_key):
     svg += '<text x="420" y="' + str(y_position) + '" class="key-container key-content">'
     for line in private_key_lines:
         svg += f'<tspan x="420" dy="1.2em">{line}</tspan>'
+
+    svg += '<a href="https://csp.ebs-systems.epizy.com/" target="_blank"><text>Onde usar isso?</text></a>'
     svg += '</text>'
 
     # Fechar o SVG
