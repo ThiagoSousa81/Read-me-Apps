@@ -1,4 +1,5 @@
-from flask import Flask, Response, redirect
+from flask import Flask, request, jsonify, Response, redirect
+from bs4 import BeautifulSoup
 import requests
 
 app = Flask(__name__)
@@ -8,6 +9,91 @@ app = Flask(__name__)
 def home():
     # Redirecionar para o link do GitHub
     return redirect("https://github.com/ThiagoSousa81/Read-me-Apps/#readme", code=302)  
+
+# Função para buscar dados do usuário no GitHub --- Não utilizada
+def get_github_user_data(username):
+    url = f"https://api.github.com/users/{username}"
+    response = requests.get(url)
+    
+    if response.status_code == 200:
+        data = response.json()
+        # Aqui você pode adicionar qualquer outro dado que deseje usar como "pontuação"
+        # Por exemplo, estamos pegando os seguidores e o número de repositórios públicos
+        score = data['followers'] + data['public_repos']  # Pontuação baseada em seguidores + repositórios públicos
+        return {
+            "username": username,
+            "score": score,
+            "followers": data['followers'],
+            "public_repos": data['public_repos']
+        }
+    else:
+        return None
+
+# Função para buscar o conteúdo do SVG da API do GitHub Readme Stats
+def get_github_svg(username):
+    url = f"https://github-readme-stats.vercel.app/api?username={username}&show_icons=true&theme=transparent&locale=pt-br"
+    response = requests.get(url)
+    return response.text
+
+# Função para extrair o valor final de stroke-dashoffset da animação CSS
+def extract_stroke_dashoffset_from_svg(svg_content):
+    soup = BeautifulSoup(svg_content, 'html.parser')
+    
+    # Encontrar a tag <style> onde a animação é definida
+    style_tag = soup.find('style')
+    if style_tag:
+        # Extrair o conteúdo do CSS dentro da tag <style>
+        css_content = style_tag.string
+        
+        # Buscar pelo padrão do keyframes 'rankAnimation'
+        if 'rankAnimation' in css_content:
+            # Encontrar a parte 'to' da animação que define o valor final de stroke-dashoffset
+            to_value = None
+            lines = css_content.split("\n")
+            for line in lines:
+                if 'to {' in line:
+                    # A linha com 'to {' tem o valor final do stroke-dashoffset
+                    next_line = lines[lines.index(line) + 1]
+                    if 'stroke-dashoffset' in next_line:
+                        # Extrair o valor final de stroke-dashoffset
+                        to_value = float(next_line.split(':')[1].strip().replace(';', ''))
+                        break
+            return to_value
+    return None
+
+# Rota para obter a pontuação dos usuários via GET
+@app.route('/github_scores', methods=['GET'])
+def get_github_scores():
+    usernames = request.args.get('usernames', '').split(',')
+    
+    if not usernames:
+        return jsonify({"error": "No usernames provided"}), 400
+    
+    scores = []
+    
+    # Itera sobre os usernames e consulta a API do GitHub Readme Stats
+    for username in usernames:
+        svg_content = get_github_svg(username)
+        stroke_dashoffset = extract_stroke_dashoffset_from_svg(svg_content)
+        
+        if stroke_dashoffset is not None:
+            scores.append({
+                "username": username,
+                "stroke_dashoffset": stroke_dashoffset
+            })
+        else:
+            scores.append({
+                "username": username,
+                "score": "Not found or unable to extract score"
+            })
+    
+    # Ordena os usuários pelo valor de stroke-dashoffset (do menor para o maior)
+    scores.sort(key=lambda x: x['stroke_dashoffset'] if isinstance(x['stroke_dashoffset'], (int, float)) else float('inf'))
+    
+    # Agora, com o valor de stroke-dashoffset, podemos retornar a pontuação classificada
+    return jsonify(scores)
+
+
 
 # Função para coletar as chaves da API
 def get_keys():
