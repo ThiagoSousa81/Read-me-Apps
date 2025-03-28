@@ -61,6 +61,7 @@ def extract_stroke_dashoffset_from_svg(svg_content):
             return to_value
     return None
 
+
 # Rota para obter a pontuação dos usuários via GET
 @app.route('/github_scores', methods=['GET'])
 def get_github_scores():
