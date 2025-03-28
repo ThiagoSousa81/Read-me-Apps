@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, Response, redirect
 from bs4 import BeautifulSoup
 import requests
+from lxml import etree
 
 app = Flask(__name__)
 
@@ -28,7 +29,7 @@ def get_github_user_data(username):
         }
     else:
         return None
-
+    
 # Função para buscar o conteúdo do SVG da API do GitHub Readme Stats
 def get_github_svg(username):
     url = f"https://github-readme-stats.vercel.app/api?username={username}&show_icons=true&theme=transparent&locale=pt-br"
@@ -62,38 +63,56 @@ def extract_stroke_dashoffset_from_svg(svg_content):
     return None
 
 
-# Rota para obter a pontuação dos usuários via GET
-@app.route('/github_scores', methods=['GET'])
-def get_github_scores():
+# Função para combinar os SVGs dos usuários em um único SVG
+def combine_svgs(usernames):
+    # Cria a estrutura base de SVG
+    combined_svg = etree.Element("svg", xmlns="http://www.w3.org/2000/svg", width="500", height="500", viewBox="0 0 500 500")
+    
+    x_offset = 0  # Variável para controlar a posição horizontal
+    y_offset = 0  # Variável para controlar a posição vertical
+
+    for username in usernames:
+        svg_content = get_github_svg(username)
+
+        # Usar lxml para parsear o conteúdo SVG
+        try:
+            svg_tree = etree.fromstring(svg_content)
+            
+            # Iterar sobre os elementos dentro do SVG e adicionar ao SVG combinado
+            for elem in svg_tree.iter():
+                if isinstance(elem.tag, str):
+                    # Ignorar a tag <svg> e adicionar os outros elementos gráficos
+                    if elem.tag != "svg":
+                        # Ajuste as coordenadas (x e y) de cada elemento para o posicionamento desejado
+                        elem.set("x", str(x_offset))
+                        elem.set("y", str(y_offset))
+                        combined_svg.append(elem)
+
+            # Ajuste o x_offset e y_offset para o próximo SVG (apenas para exemplificação)
+            x_offset += 150  # Incrementa para a próxima posição horizontal
+            if x_offset > 400:  # Se ultrapassar a largura, reseta para nova linha
+                x_offset = 0
+                y_offset += 150  # Avança para baixo
+
+        except Exception as e:
+            print(f"Erro ao processar o SVG de {username}: {e}")
+
+    # Retorna o SVG combinado
+    return etree.tostring(combined_svg, pretty_print=True).decode()
+
+# Rota para gerar um SVG combinado com os usuários
+@app.route('/combined_svg', methods=['GET'])
+def get_combined_svg():
     usernames = request.args.get('usernames', '').split(',')
     
     if not usernames:
         return jsonify({"error": "No usernames provided"}), 400
     
-    scores = []
-    
-    # Itera sobre os usernames e consulta a API do GitHub Readme Stats
-    for username in usernames:
-        svg_content = get_github_svg(username)
-        stroke_dashoffset = extract_stroke_dashoffset_from_svg(svg_content)
-        
-        if stroke_dashoffset is not None:
-            scores.append({
-                "username": username,
-                "stroke_dashoffset": stroke_dashoffset
-            })
-        else:
-            scores.append({
-                "username": username,
-                "score": "Not found or unable to extract score"
-            })
-    
-    # Ordena os usuários pelo valor de stroke-dashoffset (do menor para o maior)
-    scores.sort(key=lambda x: x['stroke_dashoffset'] if isinstance(x['stroke_dashoffset'], (int, float)) else float('inf'))
-    
-    # Agora, com o valor de stroke-dashoffset, podemos retornar a pontuação classificada
-    return jsonify(scores)
+    # Combina os SVGs de todos os usuários
+    combined_svg = combine_svgs(usernames)
 
+    # Retorna o SVG combinado como resposta
+    return Response(combined_svg, mimetype="image/svg+xml")
 
 
 # Função para coletar as chaves da API
